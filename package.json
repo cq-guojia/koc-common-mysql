@@ -1,0 +1,17 @@
+{
+  "name": "koc-common-mysql",
+  "version": "1.0.0",
+  "description": "koc-common-mysql",
+  "main": "index.js",
+  "dependencies": {
+    "koc-common-return": "^1.0.0",
+    "koc-common-string": "^1.0.0",
+    "mysql": "^2.13.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:cq-guojia/koc-common-mysql.git"
+  },
+  "author": "",
+  "license": "ISC"
+}
