@@ -1,8 +1,8 @@
 "use strict";
 
 const mysql = require("mysql");
-const StringUtils = require("koc-common-string");
-const ReturnValue = require("koc-common-return");
+const KOCString = require("koc-common-string");
+const KOCReturn = require("koc-common-return");
 
 let poolCluster = null;
 let cacheRedis = null;
@@ -31,7 +31,7 @@ const MysqlHelper = {
   Conn: (dbname) => {
     return new Promise((resolve) => {
       poolCluster.getConnection(dbname, (err, conn) => {
-        const retValue = ReturnValue();
+        const retValue = KOCReturn.Value();
         if (err) {
           //记录日志
           console.log("连接DB出错[" + group + "]");
@@ -65,7 +65,7 @@ const MysqlHelper = {
   Query: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
       let conn, tran = false;
-      let retValue = ReturnValue();
+      let retValue = KOCReturn.Value();
       // 判断事务
       if ((typeof dbconn !== 'string') || (dbconn.constructor !== String)) {
         tran = true;
@@ -211,7 +211,7 @@ const MysqlHelper = {
    ********************************/
   TranCommit: (conn) => {
     return new Promise((resolve) => {
-      const retValue = ReturnValue();
+      const retValue = KOCReturn.Value();
       if (!conn) {
         retValue.hasError = true;
         retValue.message = "空连接不能提交事务";
@@ -233,7 +233,7 @@ const MysqlHelper = {
    * AddToWhereSQL 添加条件
    ********************************/
   AddToWhereSQL: (whereSQL, addSQL, opSQL) => {
-    whereSQL = StringUtils.ToString(whereSQL).trim();
+    whereSQL = KOCString.ToString(whereSQL).trim();
     if (whereSQL) {
       whereSQL += " " + opSQL + " (" + addSQL + ") ";
     } else {
@@ -245,7 +245,7 @@ const MysqlHelper = {
    * ToDBStr
    ********************************/
   ToDBStr: (str) => {
-    return StringUtils.ToString(str).replace(/'/g, "''").replace(/`/g, " ");
+    return KOCString.ToString(str).replace(/'/g, "''").replace(/`/g, " ");
   },
   /********************************
    * PageParm 分页，参数
@@ -365,13 +365,13 @@ const MysqlHelper = {
    * CacheKey 缓存Key
    ********************************/
   CacheKey: (dbname, sql, parm) => {
-    return StringUtils.MD5(StringUtils.ToString(dbname) + StringUtils.ToString(sql) + JSON.stringify(parm));
+    return KOCString.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm));
   },
   /********************************
    * CacheExpire 缓存过期时间(分钟)默认3分钟
    ********************************/
   CacheExpire: (expire) => {
-    return StringUtils.ToIntPositive(expire, 3) * 60;
+    return KOCString.ToIntPositive(expire, 3) * 60;
   }
 };
 
