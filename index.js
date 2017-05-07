@@ -1,6 +1,8 @@
 "use strict";
 
-const mysql = require("mysql");
+const Mysql = require("mysql");
+
+const CryptoJS = require("crypto-js");
 const KOCString = require("koc-common-string");
 const KOCReturn = require("koc-common-return");
 
@@ -15,7 +17,7 @@ const MysqlHelper = {
     if (poolCluster) {
       return MysqlHelper;
     }
-    poolCluster = mysql.createPoolCluster();
+    poolCluster = Mysql.createPoolCluster();
     dblist.forEach((ThisValue) => {
       poolCluster.add(ThisValue.name, ThisValue);
     });
@@ -45,7 +47,7 @@ const MysqlHelper = {
             return query;
           }
           if (values instanceof Array || typeof values !== "object") {
-            return mysql.format(query, values);
+            return Mysql.format(query, values);
           }
           return query.replace(/\:(\w+)/g, function (txt, key) {
             if (values.hasOwnProperty(key)) {
@@ -365,7 +367,7 @@ const MysqlHelper = {
    * CacheKey 缓存Key
    ********************************/
   CacheKey: (dbname, sql, parm) => {
-    return KOCString.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm));
+    return CryptoJS.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm));
   },
   /********************************
    * CacheExpire 缓存过期时间(分钟)默认3分钟
