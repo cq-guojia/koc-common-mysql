@@ -36,7 +36,7 @@ const MysqlHelper = {
         const retValue = KOCReturn.Value();
         if (err) {
           //记录日志
-          console.log("连接DB出错[" + group + "]");
+          console.log("连接DB出错[" + dbname + "]");
           console.log(err.message);
           retValue.hasError = true;
           retValue.errorCode = "Conn Error";
