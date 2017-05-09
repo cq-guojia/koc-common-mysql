@@ -9,13 +9,13 @@ const KOCReturn = require("koc-common-return");
 let poolCluster = null;
 let cacheRedis = null;
 
-const MysqlHelper = {
+const KOCMysql = {
   /********************************
    * Init 初始化
    ********************************/
   Init: (dblist, redis, clear) => {
     if (poolCluster) {
-      return MysqlHelper;
+      return KOCMysql;
     }
     poolCluster = Mysql.createPoolCluster();
     dblist.forEach((ThisValue) => {
@@ -23,9 +23,9 @@ const MysqlHelper = {
     });
     cacheRedis = redis;
     if (cacheRedis && clear) {
-      MysqlHelper.CacheClear();
+      KOCMysql.CacheClear();
     }
-    return MysqlHelper;
+    return KOCMysql;
   },
   /********************************
    * Conn 初始化
@@ -77,10 +77,10 @@ const MysqlHelper = {
       if (cacheRedis && !tran) {
         if (!cache) {
           // 强制清除缓存
-          MysqlHelper.CacheRemove(dbconn, sql, parm);
+          KOCMysql.CacheRemove(dbconn, sql, parm);
         } else {
           // 读取缓存数据
-          retValue.returnObject = await MysqlHelper.CacheGet(dbconn, sql, parm);
+          retValue.returnObject = await KOCMysql.CacheGet(dbconn, sql, parm);
           if (retValue.returnObject) {
             return resolve(retValue);
           }
@@ -88,7 +88,7 @@ const MysqlHelper = {
       }
       // 取得连接
       if (!conn) {
-        retValue = await MysqlHelper.Conn(dbconn);
+        retValue = await KOCMysql.Conn(dbconn);
         if (retValue.hasError) {
           return resolve(retValue);
         }
@@ -109,7 +109,7 @@ const MysqlHelper = {
         }
         //写入缓存
         if (cache && !tran && cacheRedis && retValue.returnObject instanceof Array && retValue.returnObject.length) {
-          MysqlHelper.CachePut(dbconn, sql, parm, retValue.returnObject, cache);
+          KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache);
         }
         retValue.returnObject = rows;
         resolve(retValue);
@@ -121,7 +121,7 @@ const MysqlHelper = {
    ********************************/
   ExecuteTable: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
-      const retValue = await MysqlHelper.Query(dbconn, sql, parm, cache);
+      const retValue = await KOCMysql.Query(dbconn, sql, parm, cache);
       if (retValue.hasError) {
         return resolve(retValue);
       }
@@ -133,14 +133,14 @@ const MysqlHelper = {
     });
   },
   ExecuteTableCache: async (dbconn, sql, parm, cache) => {
-    return await MysqlHelper.ExecuteTable(dbconn, sql, parm, cache || true);
+    return await KOCMysql.ExecuteTable(dbconn, sql, parm, cache || true);
   },
   /********************************
    * ExecuteRow 查询行
    ********************************/
   ExecuteRow: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
-      const retValue = await MysqlHelper.ExecuteTable(dbconn, sql, parm, cache);
+      const retValue = await KOCMysql.ExecuteTable(dbconn, sql, parm, cache);
       if (!retValue.hasError) {
         if (retValue.returnObject.length <= 0) {
           retValue.returnObject = null;
@@ -152,14 +152,14 @@ const MysqlHelper = {
     });
   },
   ExecuteRowCache: async (dbconn, sql, parm, cache) => {
-    return await MysqlHelper.ExecuteRow(dbconn, sql, parm, cache || true);
+    return await KOCMysql.ExecuteRow(dbconn, sql, parm, cache || true);
   },
   /********************************
    * ExecuteNonQuery 执行，返回受影响的行
    ********************************/
   ExecuteNonQuery: (dbconn, sql, parm, cacheRemove, cacheDBName) => {
     return new Promise(async (resolve) => {
-      const retValue = await MysqlHelper.Query(dbconn, sql, parm, false);
+      const retValue = await KOCMysql.Query(dbconn, sql, parm, false);
       if (retValue.hasError) {
         return resolve(retValue);
       }
@@ -168,7 +168,7 @@ const MysqlHelper = {
         return resolve(retValue);
       }
       if (cacheRemove) {
-        MysqlHelper.CacheRemoveList(cacheRemove, cacheDBName);
+        KOCMysql.CacheRemoveList(cacheRemove, cacheDBName);
       }
       retValue.PutValue("insertId", retValue.returnObject.insertId);
       retValue.returnObject = retValue.returnObject.affectedRows;
@@ -180,7 +180,7 @@ const MysqlHelper = {
    ********************************/
   TranOpen: (db) => {
     return new Promise(async (resolve) => {
-      const retValue = await MysqlHelper.Conn(db);
+      const retValue = await KOCMysql.Conn(db);
       if (retValue.hasError) {
         return resolve(retValue);
       }
@@ -223,7 +223,7 @@ const MysqlHelper = {
         if (err) {
           retValue.hasError = true;
           retValue.message = err.message;
-          await MysqlHelper.TranRollback(conn);
+          await KOCMysql.TranRollback(conn);
           return resolve(retValue);
         }
         conn.release();
@@ -267,10 +267,10 @@ const MysqlHelper = {
    * PageInfo 分页，页数据
    ********************************/
   PageInfo: async (db, pageparm, parm) => {
-    const sql = "SELECT COUNT(" + MysqlHelper.ToDBStr(pageparm.ColumnPK) + ") AS `RecordCount`, MAX(" + MysqlHelper.ToDBStr(pageparm.ColumnMAX) + ") AS `MaxCode`" +
+    const sql = "SELECT COUNT(" + KOCMysql.ToDBStr(pageparm.ColumnPK) + ") AS `RecordCount`, MAX(" + KOCMysql.ToDBStr(pageparm.ColumnMAX) + ") AS `MaxCode`" +
       " FROM " + pageparm.TableList
       + (pageparm.Condition ? (" WHERE " + pageparm.Condition) : "");
-    const retValue = await MysqlHelper.ExecuteRow(db, sql, parm);
+    const retValue = await KOCMysql.ExecuteRow(db, sql, parm);
     if (retValue.hasError) {
       retValue.hasError = false;
       retValue.returnObject = {
@@ -287,19 +287,19 @@ const MysqlHelper = {
     const sql = "SELECT " + pageparm.ColumnList
       + " FROM " + pageparm.TableList
       + (pageparm.Condition ? (" WHERE " + pageparm.Condition) : "")
-      + (pageparm.OrderName ? (" ORDER BY " + MysqlHelper.ToDBStr(pageparm.OrderName)) : "")
+      + (pageparm.OrderName ? (" ORDER BY " + KOCMysql.ToDBStr(pageparm.OrderName)) : "")
       + " LIMIT " + pageparm.Start + ", " + pageparm.Length;
-    return await MysqlHelper.ExecuteTable(db, sql, parm);
+    return await KOCMysql.ExecuteTable(db, sql, parm);
   },
   /********************************
    * PageList 分页
    ********************************/
   Page: async (db, pageparm, parm) => {
-    let retValue = await MysqlHelper.PageList(db, pageparm, parm);
+    let retValue = await KOCMysql.PageList(db, pageparm, parm);
     if (!pageparm.GetPageInfo || retValue.hasError) {
       return retValue;
     }
-    retValue.PutValue("PageInfo", (await MysqlHelper.PageInfo(db, pageparm, parm)).returnObject);
+    retValue.PutValue("PageInfo", (await KOCMysql.PageInfo(db, pageparm, parm)).returnObject);
     return retValue;
   },
   /********************************
@@ -309,7 +309,7 @@ const MysqlHelper = {
     if (!cacheRedis || !object) {
       return;
     }
-    cacheRedis.set(MysqlHelper.CacheKey(dbname, sql, parm), JSON.stringify(object), "EX", MysqlHelper.CacheExpire(expire));
+    cacheRedis.set(KOCMysql.CacheKey(dbname, sql, parm), JSON.stringify(object), "EX", KOCMysql.CacheExpire(expire));
   },
   /********************************
    * CacheGet 缓存取出
@@ -319,7 +319,7 @@ const MysqlHelper = {
       if (!cacheRedis) {
         return resolve();
       }
-      cacheRedis.get(MysqlHelper.CacheKey(dbname, sql, parm), function (err, result) {
+      cacheRedis.get(KOCMysql.CacheKey(dbname, sql, parm), function (err, result) {
         if (err || !result) {
           return resolve();
         }
@@ -338,7 +338,7 @@ const MysqlHelper = {
     if (!cacheRedis) {
       return;
     }
-    cacheRedis.del(MysqlHelper.CacheKey(dbname, sql, parm));
+    cacheRedis.del(KOCMysql.CacheKey(dbname, sql, parm));
   },
   CacheRemoveList: function (value, dbname) {
     if (!cacheRedis) {
@@ -349,7 +349,7 @@ const MysqlHelper = {
     }
     value.forEach((ThisValue) => {
       try {
-        MysqlHelper.CacheRemove(dbname || ThisValue.DB, ThisValue.SQL, ThisValue.Parm);
+        KOCMysql.CacheRemove(dbname || ThisValue.DB, ThisValue.SQL, ThisValue.Parm);
       } catch (ex) {
       }
     });
@@ -377,4 +377,4 @@ const MysqlHelper = {
   }
 };
 
-module.exports = MysqlHelper;
+module.exports = KOCMysql;

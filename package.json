@@ -6,7 +6,7 @@
   "dependencies": {
     "crypto-js": "^3.1.9-1",
     "koc-common-return": "^1.0.1",
-    "koc-common-string": "^1.0.8",
+    "koc-common-string": "^1.0.9",
     "mysql": "^2.13.0"
   },
   "repository": {
