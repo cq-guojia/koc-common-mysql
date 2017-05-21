@@ -349,9 +349,6 @@ const MysqlHelper = {
     }
     value.forEach((ThisValue) => {
       if (typeof ThisValue === "function") {
-        if (!insertId || insertId <= 0) {
-          return true;
-        }
         ThisValue = ThisValue(insertId);
       }
       try {
