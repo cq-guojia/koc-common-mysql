@@ -370,7 +370,7 @@ const MysqlHelper = {
    * CacheKey 缓存Key
    ********************************/
   CacheKey: (dbname, sql, parm) => {
-    return CryptoJS.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm));
+    return CryptoJS.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm)).toString();
   },
   /********************************
    * CacheExpire 缓存过期时间(分钟)默认3分钟
