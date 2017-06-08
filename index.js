@@ -36,8 +36,8 @@ const MysqlHelper = {
         const retValue = KOCReturn.Value();
         if (err) {
           //记录日志
-          console.log("连接DB出错[" + dbname + "]");
-          console.log(err.message);
+          console.error("连接DB出错[" + dbname + "]");
+          console.error(err.message);
           retValue.hasError = true;
           retValue.errorCode = "Conn Error";
           return resolve(retValue);
@@ -100,18 +100,18 @@ const MysqlHelper = {
         }
         if (err) {
           //记录日志
-          console.log("查询出错[" + sql + "] 错误信息[" + err + "]");
-          console.log(parm);
-          console.log(err.message);
+          console.error("查询出错[" + sql + "] 错误信息[" + err + "]");
+          console.error(parm);
+          console.error(err.message);
           retValue.hasError = true;
           retValue.message = err.message;
           return resolve(retValue);
         }
+        retValue.returnObject = rows;
         //写入缓存
         if (cache && !tran && cacheRedis && retValue.returnObject instanceof Array && retValue.returnObject.length) {
           MysqlHelper.CachePut(dbconn, sql, parm, retValue.returnObject, cache);
         }
-        retValue.returnObject = rows;
         resolve(retValue);
       });
     });
