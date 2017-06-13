@@ -93,6 +93,8 @@ const MysqlHelper = {
         }
         conn = retValue.returnObject;
       }
+      // 打印SQL
+      // console.log(conn.config.queryFormat(sql, parm));
       conn.query(sql, parm, (err, rows) => {
         if (!tran) {
           conn.release();
