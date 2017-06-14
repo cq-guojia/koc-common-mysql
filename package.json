@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "koc-common-return": "^1.0.2",
-    "koc-common-string": "^1.0.14",
+    "koc-common-string": "^1.0.15",
     "mysql": "^2.13.0"
   },
   "repository": {
