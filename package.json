@@ -6,7 +6,7 @@
   "dependencies": {
     "koc-common-return": "^1.0.9",
     "koc-common-string": "^1.0.25",
-    "mysql": "^2.13.0"
+    "mysql": "^2.15.0"
   },
   "repository": {
     "type": "git",
