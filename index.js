@@ -13,17 +13,13 @@ const KOCMysql = {
    * Init 初始化
    ********************************/
   Init: (dblist, redis, clear) => {
-    if (poolCluster) {
-      return KOCMysql;
-    }
+    if (poolCluster) return KOCMysql;
     poolCluster = Mysql.createPoolCluster();
     dblist.forEach((ThisValue) => {
       poolCluster.add(ThisValue.name, ThisValue);
     });
     cacheRedis = redis;
-    if (cacheRedis && clear) {
-      KOCMysql.CacheClear();
-    }
+    if (cacheRedis && clear) KOCMysql.CacheClear();
     return KOCMysql;
   },
   /********************************
@@ -80,25 +76,19 @@ const KOCMysql = {
         } else {
           // 读取缓存数据
           retValue.returnObject = await KOCMysql.CacheGet(dbconn, sql, parm);
-          if (retValue.returnObject) {
-            return resolve(retValue);
-          }
+          if (retValue.returnObject) return resolve(retValue);
         }
       }
       // 取得连接
       if (!conn) {
         retValue = await KOCMysql.Conn(dbconn);
-        if (retValue.hasError) {
-          return resolve(retValue);
-        }
+        if (retValue.hasError) return resolve(retValue);
         conn = retValue.returnObject;
       }
       // 打印SQL
       // console.log(conn.config.queryFormat(sql, parm));
       conn.query(sql, parm, (err, rows) => {
-        if (!tran) {
-          conn.release();
-        }
+        if (!tran) conn.release();
         if (err) {
           //记录日志
           console.error("查询出错[" + sql + "] 错误信息[" + err + "]");
@@ -110,9 +100,7 @@ const KOCMysql = {
         }
         retValue.returnObject = rows;
         //写入缓存
-        if (cache && !tran && cacheRedis && retValue.returnObject instanceof Array && retValue.returnObject.length) {
-          KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache);
-        }
+        if (cache && !tran && cacheRedis && retValue.returnObject instanceof Array && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache);
         resolve(retValue);
       });
     });
@@ -123,9 +111,7 @@ const KOCMysql = {
   ExecuteTable: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Query(dbconn, sql, parm, cache);
-      if (retValue.hasError) {
-        return resolve(retValue);
-      }
+      if (retValue.hasError) return resolve(retValue);
       if (!(retValue.returnObject instanceof Array)) {
         retValue.hasError = true;
         return resolve(retValue);
@@ -161,31 +147,27 @@ const KOCMysql = {
   ExecuteNonQuery: (dbconn, sql, parm, cacheRemove, cacheDBName) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Query(dbconn, sql, parm, false);
-      if (retValue.hasError) {
-        return resolve(retValue);
-      }
-      const retArray = retValue.returnObject instanceof Array;
+      if (retValue.hasError) return resolve(retValue);
+      let insertID;
       let affectedRows = 0;
-      let insertId = [];
-      if (retArray) {
+      if (retValue.returnObject instanceof Array) {
+        insertID = [];
         for (const thisValue of retValue.returnObject) {
-          if (!thisValue.hasOwnProperty('affectedRows')) continue;
-          affectedRows += thisValue.affectedRows;
-          if (thisValue.insertId) insertId.push(thisValue.insertId)
-        }
-      }
-      if (cacheRemove) {
-        let removeID = [];
-        if (insertId.length) removeID = insertId;
-        if (retValue.returnObject && retValue.returnObject.insertId) removeID.push(insertId);
-        if (removeID.length) {
-          for (const thisValue of removeID) {
-            KOCMysql.CacheRemoveList(cacheRemove, cacheDBName, thisValue);
+          if (!thisValue.hasOwnProperty('affectedRows') || !thisValue.hasOwnProperty('insertId')) {
+            retValue.hasError = true;
+            return resolve(retValue);
           }
+          if (thisValue.insertId) insertID.push(thisValue.insertId);
+          affectedRows += this.affectedRows;
         }
+        if (insertID.length) insertID = null;
+      } else {
+        insertID = retValue.returnObject.insertId;
+        affectedRows = retValue.returnObject.affectedRows;
       }
-      retValue.PutValue("insertId", retArray ? insertId : retValue.returnObject.insertId);
-      retValue.returnObject = retArray ? affectedRows : retValue.returnObject.affectedRows;
+      if (cacheRemove) KOCMysql.CacheRemoveList(cacheRemove, cacheDBName, insertID);
+      retValue.PutValue("insertId", insertID);
+      retValue.returnObject = affectedRows;
       resolve(retValue);
     });
   },
@@ -195,9 +177,7 @@ const KOCMysql = {
   TranOpen: (db) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Conn(db);
-      if (retValue.hasError) {
-        return resolve(retValue);
-      }
+      if (retValue.hasError) return resolve(retValue);
       retValue.returnObject.beginTransaction((err) => {
         if (err) {
           retValue.hasError = true;
@@ -213,9 +193,7 @@ const KOCMysql = {
    ********************************/
   TranRollback: (conn) => {
     return new Promise((resolve) => {
-      if (!conn) {
-        return resolve();
-      }
+      if (!conn) return resolve();
       conn.rollback(function () {
         conn.release();
         resolve();
@@ -310,9 +288,7 @@ const KOCMysql = {
    ********************************/
   Page: async (db, pageparm, parm) => {
     let retValue = await KOCMysql.PageList(db, pageparm, parm);
-    if (!pageparm.GetPageInfo || retValue.hasError) {
-      return retValue;
-    }
+    if (!pageparm.GetPageInfo || retValue.hasError) return retValue;
     retValue.PutValue("PageInfo", (await KOCMysql.PageInfo(db, pageparm, parm)).returnObject);
     return retValue;
   },
@@ -320,9 +296,7 @@ const KOCMysql = {
    * CachePut 缓存写入
    ********************************/
   CachePut: function (dbname, sql, parm, object, expire) {
-    if (!cacheRedis || !object) {
-      return;
-    }
+    if (!cacheRedis || !object) return;
     cacheRedis.set(KOCMysql.CacheKey(dbname, sql, parm), JSON.stringify(object), "EX", KOCMysql.CacheExpire(expire));
   },
   /********************************
@@ -330,13 +304,9 @@ const KOCMysql = {
    ********************************/
   CacheGet: (dbname, sql, parm) => {
     return new Promise((resolve) => {
-      if (!cacheRedis) {
-        return resolve();
-      }
+      if (!cacheRedis) return resolve();
       cacheRedis.get(KOCMysql.CacheKey(dbname, sql, parm), function (err, result) {
-        if (err || !result) {
-          return resolve();
-        }
+        if (err || !result) return resolve();
         try {
           result = JSON.parse(result);
         } catch (ex) {
@@ -349,35 +319,35 @@ const KOCMysql = {
    * CacheRemove 缓存移除
    ********************************/
   CacheRemove: function (dbname, sql, parm) {
-    if (!cacheRedis) {
-      return;
-    }
+    if (!cacheRedis) return;
     cacheRedis.del(KOCMysql.CacheKey(dbname, sql, parm));
   },
   CacheRemoveList: function (value, dbname, insertId) {
-    if (!cacheRedis) {
-      return;
-    }
-    if (!(value instanceof Array)) {
-      value = [value];
-    }
-    value.forEach((ThisValue) => {
-      if (typeof ThisValue === "function") {
-        ThisValue = ThisValue(insertId);
+    if (!cacheRedis) return;
+    if (!(value instanceof Array)) value = [value];
+    for (const thisValue of value) {
+      const cacheRemoveList = [];
+      if (typeof thisValue !== "function") {
+        cacheRemoveList.push(thisValue)
+      } else if (insertId) {
+        if (!(insertId instanceof Array)) insertId = [insertId];
+        for (const thisInsertID of insertId) {
+          cacheRemoveList.push(thisValue(thisInsertID))
+        }
       }
-      try {
-        KOCMysql.CacheRemove(dbname || ThisValue.DB, ThisValue.SQL, ThisValue.Parm);
-      } catch (ex) {
+      for (const thisCacheRemove of cacheRemoveList) {
+        try {
+          KOCMysql.CacheRemove(dbname || thisCacheRemove.DB, thisCacheRemove.SQL, thisCacheRemove.Parm);
+        } catch (ex) {
+        }
       }
-    });
+    }
   },
   /********************************
    * CacheClear 缓存清所(所有缓存:慎用)
    ********************************/
   CacheClear: () => {
-    if (!cacheRedis) {
-      return;
-    }
+    if (!cacheRedis) return;
     cacheRedis.flushdb();
   },
   /********************************
