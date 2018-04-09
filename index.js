@@ -164,15 +164,28 @@ const KOCMysql = {
       if (retValue.hasError) {
         return resolve(retValue);
       }
-      if (retValue.returnObject instanceof Array) {
-        retValue.hasError = true;
-        return resolve(retValue);
+      const retArray = retValue.returnObject instanceof Array
+      let affectedRows = 0;
+      let insertId = [];
+      if (retArray) {
+        for (const thisValue of retValue.returnObject) {
+          if (!thisValue.hasOwnProperty('affectedRows')) continue
+          affectedRows += thisValue.affectedRows;
+          if (thisValue.insertId) insertId.push(thisValue.insertId)
+        }
       }
       if (cacheRemove) {
-        KOCMysql.CacheRemoveList(cacheRemove, cacheDBName, retValue.returnObject.insertId);
+        let removeID = [];
+        if (insertId.length) removeID = insertId;
+        if (retValue.returnObject && retValue.returnObject.insertId) removeID.push(insertId)
+        if (removeID.length) {
+          for (const thisValue of removeID) {
+            KOCMysql.CacheRemoveList(cacheRemove, cacheDBName, thisValue);
+          }
+        }
       }
-      retValue.PutValue("insertId", retValue.returnObject.insertId);
-      retValue.returnObject = retValue.returnObject.affectedRows;
+      retValue.PutValue("insertId", retArray ? insertId : retValue.returnObject.insertId);
+      retValue.returnObject = retArray ? affectedRows : retValue.returnObject.affectedRows;
       resolve(retValue);
     });
   },
