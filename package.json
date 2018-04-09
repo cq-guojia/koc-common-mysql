@@ -1,6 +1,6 @@
 {
   "name": "koc-common-mysql",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "koc-common-mysql",
   "main": "index.js",
   "dependencies": {
