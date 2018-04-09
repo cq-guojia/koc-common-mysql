@@ -164,12 +164,12 @@ const KOCMysql = {
       if (retValue.hasError) {
         return resolve(retValue);
       }
-      const retArray = retValue.returnObject instanceof Array
+      const retArray = retValue.returnObject instanceof Array;
       let affectedRows = 0;
       let insertId = [];
       if (retArray) {
         for (const thisValue of retValue.returnObject) {
-          if (!thisValue.hasOwnProperty('affectedRows')) continue
+          if (!thisValue.hasOwnProperty('affectedRows')) continue;
           affectedRows += thisValue.affectedRows;
           if (thisValue.insertId) insertId.push(thisValue.insertId)
         }
@@ -177,7 +177,7 @@ const KOCMysql = {
       if (cacheRemove) {
         let removeID = [];
         if (insertId.length) removeID = insertId;
-        if (retValue.returnObject && retValue.returnObject.insertId) removeID.push(insertId)
+        if (retValue.returnObject && retValue.returnObject.insertId) removeID.push(insertId);
         if (removeID.length) {
           for (const thisValue of removeID) {
             KOCMysql.CacheRemoveList(cacheRemove, cacheDBName, thisValue);
