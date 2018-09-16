@@ -4,7 +4,7 @@
   "description": "koc-common-mysql",
   "main": "index.js",
   "dependencies": {
-    "koc-common-return": "^1.0.11",
+    "koc-common-return": "^1.0.19",
     "koc-common-string": "^1.0.32",
     "mysql": "^2.15.0"
   },
