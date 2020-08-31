@@ -1,12 +1,12 @@
 {
   "name": "koc-common-mysql",
-  "version": "1.0.19",
+  "version": "2.0.0",
   "description": "koc-common-mysql",
   "main": "index.js",
   "dependencies": {
     "koc-common-return": "^2.0.8",
     "koc-common-string": "^1.0.44",
-    "mysql": "^2.18.1"
+    "mysql2": "^2.1.0"
   },
   "repository": {
     "type": "git",

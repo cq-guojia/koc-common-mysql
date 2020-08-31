@@ -1,6 +1,6 @@
 'use strict'
 
-const Mysql = require('mysql')
+const Mysql = require('mysql2')
 
 const KOCString = require('koc-common-string')
 const KOCReturn = require('koc-common-return/index')
@@ -14,9 +14,11 @@ const KOCMysql = {
    ********************************/
   Init: (dblist, redis, clear) => {
     if (poolCluster) return KOCMysql
-    poolCluster = Mysql.createPoolCluster()
-    dblist.forEach((ThisValue) => {
-      poolCluster.add(ThisValue.name, ThisValue)
+    poolCluster = {}
+    dblist.forEach((thisValue) => {
+      const name = thisValue.name
+      delete thisValue.name
+      poolCluster[name] = Mysql.createPool(thisValue)
     })
     cacheRedis = redis
     if (cacheRedis && clear) KOCMysql.CacheClear()
@@ -27,7 +29,7 @@ const KOCMysql = {
    ********************************/
   Conn: (dbname) => {
     return new Promise((resolve) => {
-      poolCluster.getConnection(dbname, (err, conn) => {
+      poolCluster[dbname].getConnection((err, conn) => {
         const retValue = KOCReturn.Value()
         if (err) {
           //记录日志
