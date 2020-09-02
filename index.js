@@ -8,10 +8,14 @@ const KOCReturn = require('koc-common-return/index')
 let poolCluster = null
 let cacheRedis = null
 
-const KOCMysql = {
-  /********************************
-   * Init 初始化
-   ********************************/
+const KOCMysql = module.exports = {
+  /**
+   * @desc 初始化
+   * @param dblist
+   * @param redis
+   * @param clear
+   * @return {any}
+   */
   Init: (dblist, redis, clear) => {
     if (poolCluster) return KOCMysql
     poolCluster = {}
@@ -24,9 +28,11 @@ const KOCMysql = {
     if (cacheRedis && clear) KOCMysql.CacheClear()
     return KOCMysql
   },
-  /********************************
-   * Conn 初始化
-   ********************************/
+  /**
+   * @desc 初始化连接
+   * @param dbname
+   * @return {Promise}
+   */
   Conn: (dbname) => {
     return new Promise((resolve) => {
       poolCluster[dbname].getConnection((err, conn) => {
@@ -58,9 +64,14 @@ const KOCMysql = {
       })
     })
   },
-  /********************************
-   * Query 查询
-   ********************************/
+  /**
+   * @desc 执行查询
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cache
+   * @return {Promise}
+   */
   Query: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
       let conn, tran = false
@@ -88,7 +99,7 @@ const KOCMysql = {
         conn = retValue.returnObject
       }
       // 打印SQL
-      // console.log(conn.config.queryFormat(sql, parm));
+      // console.log(conn.config.queryFormat(sql, parm))
       conn.query(sql, parm, (err, rows) => {
         if (!tran) conn.release()
         if (err) {
@@ -102,57 +113,159 @@ const KOCMysql = {
         }
         retValue.returnObject = rows
         //写入缓存
-        if (cache && !tran && cacheRedis && retValue.returnObject instanceof Array && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache)
+        if (cache && !tran && cacheRedis && Array.isArray(retValue.returnObject) && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache)
         resolve(retValue)
       })
     })
   },
-  /********************************
-   * ExecuteTable 查询列表
-   ********************************/
+  /**
+   * @desc 写入一条记录
+   * @param dbconn
+   * @param table
+   * @param parm
+   * @param [cacheRemove]
+   * @param [cacheDBName]
+   * @return {KOCReturn|Promise}
+   */
+  Insert: (dbconn, table, parm, cacheRemove, cacheDBName) => {
+    if (!dbconn || !table || !parm) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
+    const col = Object.keys(parm).map(thisValue => `\`${thisValue}\``).join(',')
+    const val = Object.keys(parm).map(thisValue => `:${thisValue}`).join(',')
+    let sql = `INSERT INTO ${table} (${col}) VALUES (${val});`
+    return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
+  },
+  /**
+   * @desc 写入或者更新
+   * @param dbconn
+   * @param table
+   * @param insert
+   * @param update
+   * @param [cacheRemove]
+   * @param [cacheDBName]
+   * @return {KOCReturn|Promise}
+   */
+  InsertOrUpdate: (dbconn, table, insert, update, cacheRemove, cacheDBName) => {
+    if (!dbconn || !table || !insert || !update) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
+    const col = Object.keys(insert).map(thisValue => `\`${thisValue}\``).join(',')
+    const val = Object.keys(insert).map(thisValue => `:${thisValue}`).join(',')
+    const sqlUpdate = Object.keys(update).map(thisValue => `\`${thisValue}\` = :${thisValue}`).join(',')
+    let sql = `INSERT INTO ${table} (${col}) VALUES (${val}) ON DUPLICATE KEY UPDATE ${sqlUpdate};`
+    const parm = Object.assign({}, insert, update)
+    return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
+  },
+  /**
+   * @desc 更新
+   * @param dbconn
+   * @param table
+   * @param update
+   * @param condition
+   * @param [cacheRemove]
+   * @param [cacheDBName]
+   * @return {KOCReturn|Promise}
+   */
+  Update: (dbconn, table, update, condition, cacheRemove, cacheDBName) => {
+    if (!dbconn || !table || !update || !condition) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
+    const sqlUpdate = Object.keys(update).map(thisValue => `\`${thisValue}\` = :${thisValue}`).join(',')
+    const sqlWhere = Object.keys(condition).map(thisValue => `\`${thisValue}\` = :WHERE_${thisValue}`).join(' AND ')
+    const parmWhere = {}
+    Object.keys(condition).forEach(thisValue => { parmWhere['WHERE_' + thisValue] = condition[thisValue] })
+    const parm = Object.assign({}, update, parmWhere)
+    const sql = `UPDATE ${table} SET ${sqlUpdate} WHERE ${sqlWhere};`
+    return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
+  },
+  /**
+   * @desc 更新或者新建
+   * @param dbconn
+   * @param table
+   * @param insert
+   * @param update
+   * @param condition
+   * @param [cacheRemove]
+   * @param [cacheDBName]
+   * @return {Promise<KOCReturn|Promise>}
+   */
+  UpdateOrCreate: async (dbconn, table, insert, update, condition, cacheRemove, cacheDBName) => {
+    if (!dbconn || !table || !insert || !update) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
+    let retValue = await KOCMysql.Update(dbconn, table, update, condition, cacheRemove, cacheDBName)
+    if (retValue.hasError) return retValue
+    if (retValue.returnObject > 0) return retValue
+    return KOCMysql.Insert(dbconn, table, insert, cacheRemove, cacheDBName)
+  },
+  /**
+   * @desc 查询列表
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cache
+   * @return {Promise}
+   */
   ExecuteTable: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Query(dbconn, sql, parm, cache)
       if (retValue.hasError) return resolve(retValue)
-      if (!(retValue.returnObject instanceof Array)) {
+      if (!Array.isArray(retValue.returnObject)) {
         retValue.hasError = true
         return resolve(retValue)
       }
       resolve(retValue)
     })
   },
-  ExecuteTableCache: async (dbconn, sql, parm, cache) => {
-    return await KOCMysql.ExecuteTable(dbconn, sql, parm, cache || true)
+  /**
+   * @desc 查询列表(缓存)
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cache
+   * @return {Promise}
+   */
+  ExecuteTableCache: (dbconn, sql, parm, cache) => {
+    return KOCMysql.ExecuteTable(dbconn, sql, parm, cache || true)
   },
-  /********************************
-   * ExecuteRow 查询行
-   ********************************/
+  /**
+   * @desc 查询一条记录
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cache
+   * @return {Promise}
+   */
   ExecuteRow: (dbconn, sql, parm, cache) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.ExecuteTable(dbconn, sql, parm, cache)
       if (!retValue.hasError) {
-        if (retValue.returnObject.length <= 0) {
-          retValue.returnObject = null
-        } else {
-          retValue.returnObject = retValue.returnObject[0]
-        }
+        if (retValue.returnObject.length <= 0) retValue.returnObject = null
+        else retValue.returnObject = retValue.returnObject[0]
       }
       resolve(retValue)
     })
   },
-  ExecuteRowCache: async (dbconn, sql, parm, cache) => {
-    return await KOCMysql.ExecuteRow(dbconn, sql, parm, cache || true)
+  /**
+   * @desc 查询一条记录(缓存)
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cache
+   * @return {Promise}
+   */
+  ExecuteRowCache: (dbconn, sql, parm, cache) => {
+    return KOCMysql.ExecuteRow(dbconn, sql, parm, cache || true)
   },
-  /********************************
-   * ExecuteNonQuery 执行，返回受影响的行
-   ********************************/
+  /**
+   * @desc 执行语句返回受影响的行数
+   * @param dbconn
+   * @param sql
+   * @param parm
+   * @param cacheRemove
+   * @param cacheDBName
+   * @return {Promise}
+   */
   ExecuteNonQuery: (dbconn, sql, parm, cacheRemove, cacheDBName) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Query(dbconn, sql, parm, false)
       if (retValue.hasError) return resolve(retValue)
       let insertID
       let affectedRows = 0
-      if (retValue.returnObject instanceof Array) {
+      if (Array.isArray(retValue.returnObject)) {
         insertID = []
         for (const thisValue of retValue.returnObject) {
           if (!thisValue.hasOwnProperty('affectedRows') || !thisValue.hasOwnProperty('insertId')) {
@@ -173,9 +286,11 @@ const KOCMysql = {
       resolve(retValue)
     })
   },
-  /********************************
-   * TranOpen 事务开启
-   ********************************/
+  /**
+   * @desc 事务开启
+   * @param db
+   * @return {Promise}
+   */
   TranOpen: (db) => {
     return new Promise(async (resolve) => {
       const retValue = await KOCMysql.Conn(db)
@@ -190,9 +305,11 @@ const KOCMysql = {
       })
     })
   },
-  /********************************
-   * TranRollback 事务会滚
-   ********************************/
+  /**
+   * @desc 事务回滚
+   * @param conn
+   * @return {Promise}
+   */
   TranRollback: (conn) => {
     return new Promise((resolve) => {
       if (!conn) return resolve()
@@ -202,9 +319,11 @@ const KOCMysql = {
       })
     })
   },
-  /********************************
-   * TranCommit 事务提交
-   ********************************/
+  /**
+   * @desc 事务提交
+   * @param conn
+   * @return {Promise}
+   */
   TranCommit: (conn) => {
     return new Promise((resolve) => {
       const retValue = KOCReturn.Value()
@@ -225,9 +344,13 @@ const KOCMysql = {
       })
     })
   },
-  /********************************
-   * AddToWhereSQL 添加条件
-   ********************************/
+  /**
+   * @desc 添加条件
+   * @param whereSQL
+   * @param addSQL
+   * @param opSQL
+   * @return {string}
+   */
   AddToWhereSQL: (whereSQL, addSQL, opSQL) => {
     whereSQL = KOCString.ToString(whereSQL).trim()
     if (whereSQL) {
@@ -237,15 +360,15 @@ const KOCMysql = {
     }
     return whereSQL.trim()
   },
-  /********************************
-   * ToDBStr
-   ********************************/
-  ToDBStr: (str) => {
-    return KOCString.ToString(str).replace(/'/g, '\'\'').replace(/`/g, ' ')
-  },
-  /********************************
-   * PageParm 分页，参数
-   ********************************/
+  /**
+   * @desc 语句防注入处理
+   * @param str
+   * @return {string}
+   */
+  ToDBStr: (str) => KOCString.ToString(str).replace(/'/g, '\'\'').replace(/`/g, ' '),
+  /**
+   * @desc 分页，参数
+   */
   PageParm: function () {
     this.GetPageInfo = true
     this.ColumnPK = ''
@@ -257,9 +380,17 @@ const KOCMysql = {
     this.Start = 1
     this.Length = 0
   },
-  /********************************
-   * PageInfo 分页，页数据
-   ********************************/
+  /**
+   * @desc 分页，页数据
+   * @param db
+   * @param pageparm
+   * @param pageparm.ColumnPK
+   * @param pageparm.ColumnMAX
+   * @param pageparm.TableList
+   * @param pageparm.Condition
+   * @param parm
+   * @return {Promise}
+   */
   PageInfo: async (db, pageparm, parm) => {
     const sql = 'SELECT COUNT(' + KOCMysql.ToDBStr(pageparm.ColumnPK) + ') AS `RecordCount`, MAX(' + KOCMysql.ToDBStr(pageparm.ColumnMAX) + ') AS `MaxCode`' +
       ' FROM ' + pageparm.TableList
@@ -267,43 +398,63 @@ const KOCMysql = {
     const retValue = await KOCMysql.ExecuteRow(db, sql, parm)
     if (retValue.hasError) {
       retValue.hasError = false
-      retValue.returnObject = {
-        RecordCount: 0,
-        MaxCode: ''
-      }
+      retValue.returnObject = { RecordCount: 0, MaxCode: '' }
     }
     return retValue
   },
-  /********************************
-   * PageList 分页，列表
-   ********************************/
-  PageList: async (db, pageparm, parm) => {
+  /**
+   * @desc 分页，列表
+   * @param db
+   * @param pageparm
+   * @param pageparm.ColumnList
+   * @param pageparm.TableList
+   * @param pageparm.Condition
+   * @param pageparm.OrderName
+   * @param pageparm.Start
+   * @param pageparm.Length
+   * @param parm
+   * @return {Promise}
+   */
+  PageList: (db, pageparm, parm) => {
     const sql = 'SELECT ' + pageparm.ColumnList
       + ' FROM ' + pageparm.TableList
       + (pageparm.Condition ? (' WHERE ' + pageparm.Condition) : '')
       + (pageparm.OrderName ? (' ORDER BY ' + KOCMysql.ToDBStr(pageparm.OrderName)) : '')
       + ' LIMIT ' + pageparm.Start + ', ' + pageparm.Length
-    return await KOCMysql.ExecuteTable(db, sql, parm)
+    return KOCMysql.ExecuteTable(db, sql, parm)
   },
-  /********************************
-   * PageList 分页
-   ********************************/
+  /**
+   * @desc 分页
+   * @param db
+   * @param pageparm
+   * @param parm
+   * @return {Promise}
+   */
   Page: async (db, pageparm, parm) => {
     let retValue = await KOCMysql.PageList(db, pageparm, parm)
     if (!pageparm.GetPageInfo || retValue.hasError) return retValue
     retValue.PutValue('PageInfo', (await KOCMysql.PageInfo(db, pageparm, parm)).returnObject)
     return retValue
   },
-  /********************************
-   * CachePut 缓存写入
-   ********************************/
+  /**
+   * @desc 缓存写入
+   * @param dbname
+   * @param sql
+   * @param parm
+   * @param object
+   * @param expire
+   */
   CachePut: function (dbname, sql, parm, object, expire) {
     if (!cacheRedis || !object) return
     cacheRedis.set(KOCMysql.CacheKey(dbname, sql, parm), JSON.stringify(object), 'EX', KOCMysql.CacheExpire(expire))
   },
-  /********************************
-   * CacheGet 缓存取出
-   ********************************/
+  /**
+   * @desc 缓存取出
+   * @param dbname
+   * @param sql
+   * @param parm
+   * @return {Promise}
+   */
   CacheGet: (dbname, sql, parm) => {
     return new Promise((resolve) => {
       if (!cacheRedis) return resolve()
@@ -317,13 +468,22 @@ const KOCMysql = {
       })
     })
   },
-  /********************************
-   * CacheRemove 缓存移除
-   ********************************/
+  /**
+   * @desc 缓存移除
+   * @param dbname
+   * @param sql
+   * @param parm
+   */
   CacheRemove: function (dbname, sql, parm) {
     if (!cacheRedis) return
     cacheRedis.del(KOCMysql.CacheKey(dbname, sql, parm))
   },
+  /**
+   * @desc 缓存移除(批量)
+   * @param value
+   * @param dbname
+   * @param insertId
+   */
   CacheRemoveList: function (value, dbname, insertId) {
     if (!cacheRedis) return
     if (!(value instanceof Array)) value = [value]
@@ -345,25 +505,25 @@ const KOCMysql = {
       }
     }
   },
-  /********************************
-   * CacheClear 缓存清所(所有缓存:慎用)
-   ********************************/
+  /**
+   * @desc 缓存清空(所有缓存:慎用)
+   */
   CacheClear: () => {
     if (!cacheRedis) return
     cacheRedis.flushdb()
   },
-  /********************************
-   * CacheKey 缓存Key
-   ********************************/
-  CacheKey: (dbname, sql, parm) => {
-    return KOCString.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm))
-  },
-  /********************************
-   * CacheExpire 缓存过期时间(分钟)默认3分钟
-   ********************************/
-  CacheExpire: (expire) => {
-    return KOCString.ToIntPositive(expire, 3) * 60
-  }
+  /**
+   * @desc 缓存Key
+   * @param dbname
+   * @param sql
+   * @param parm
+   * @return {*}
+   */
+  CacheKey: (dbname, sql, parm) => KOCString.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm)),
+  /**
+   * @desc 缓存过期时间(分钟)默认3分钟
+   * @param expire
+   * @return {number}
+   */
+  CacheExpire: (expire) => KOCString.ToIntPositive(expire, 3) * 60
 }
-
-module.exports = KOCMysql
