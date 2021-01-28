@@ -1,11 +1,11 @@
 {
   "name": "koc-common-mysql",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "koc-common-mysql",
   "main": "index.js",
   "dependencies": {
-    "koc-common-return": "^2.0.8",
-    "koc-common-string": "^1.0.49",
+    "koc-common-return": "^2.0.9",
+    "koc-common-string": "^1.0.51",
     "mysql2": "^2.2.5"
   },
   "repository": {
