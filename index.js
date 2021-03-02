@@ -1,6 +1,6 @@
 'use strict'
 
-const Mysql = require('mysql2')
+const Mysql = require('mysql')
 
 const KOCString = require('koc-common-string')
 const KOCReturn = require('koc-common-return/index')
