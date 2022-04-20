@@ -10,11 +10,11 @@ let cacheRedis = null
 
 const KOCMysql = module.exports = {
   /**
-   * @desc 初始化
+   * 初始化
    * @param dblist
-   * @param redis
-   * @param clear
-   * @return {any}
+   * @param [redis]
+   * @param [clear]
+   * @return {*}
    */
   Init: (dblist, redis, clear) => {
     if (poolCluster) return KOCMysql
@@ -29,7 +29,7 @@ const KOCMysql = module.exports = {
     return KOCMysql
   },
   /**
-   * @desc 初始化连接
+   * 初始化连接
    * @param dbname
    * @return {Promise}
    */
@@ -65,11 +65,11 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 执行查询
+   * 执行查询
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cache
+   * @param [parm]
+   * @param [cache]
    * @return {Promise}
    */
   Query: (dbconn, sql, parm, cache) => {
@@ -119,7 +119,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 写入一条记录
+   * 写入一条记录
    * @param dbconn
    * @param table
    * @param parm
@@ -135,7 +135,7 @@ const KOCMysql = module.exports = {
     return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
   },
   /**
-   * @desc 写入或者更新
+   * 写入或者更新
    * @param dbconn
    * @param table
    * @param insert
@@ -154,14 +154,14 @@ const KOCMysql = module.exports = {
     return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
   },
   /**
-   * @desc 更新
+   * 更新
    * @param dbconn
    * @param table
    * @param update
    * @param condition
    * @param [cacheRemove]
    * @param [cacheDBName]
-   * @return {KOCReturn|Promise}
+   * @return {*}
    */
   Update: (dbconn, table, update, condition, cacheRemove, cacheDBName) => {
     if (!dbconn || !table || !update || !condition) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
@@ -174,7 +174,7 @@ const KOCMysql = module.exports = {
     return KOCMysql.ExecuteNonQuery(dbconn, sql, parm, cacheRemove, cacheDBName)
   },
   /**
-   * @desc 更新或者新建
+   * 更新或者新建
    * @param dbconn
    * @param table
    * @param insert
@@ -182,7 +182,7 @@ const KOCMysql = module.exports = {
    * @param condition
    * @param [cacheRemove]
    * @param [cacheDBName]
-   * @return {Promise<KOCReturn|Promise>}
+   * @return {*}
    */
   UpdateOrCreate: async (dbconn, table, insert, update, condition, cacheRemove, cacheDBName) => {
     if (!dbconn || !table || !insert || !update) return KOCReturn.Value({ hasError: true, message: 'arguments error.' })
@@ -192,11 +192,11 @@ const KOCMysql = module.exports = {
     return KOCMysql.Insert(dbconn, table, insert, cacheRemove, cacheDBName)
   },
   /**
-   * @desc 查询列表
+   * 查询列表
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cache
+   * @param [parm]
+   * @param [cache]
    * @return {Promise}
    */
   ExecuteTable: (dbconn, sql, parm, cache) => {
@@ -211,22 +211,22 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 查询列表(缓存)
+   * 查询列表(缓存)
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cache
+   * @param [parm]
+   * @param [cache]
    * @return {Promise}
    */
   ExecuteTableCache: (dbconn, sql, parm, cache) => {
     return KOCMysql.ExecuteTable(dbconn, sql, parm, cache || true)
   },
   /**
-   * @desc 查询一条记录
+   * 查询一条记录
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cache
+   * @param [parm]
+   * @param [cache]
    * @return {Promise}
    */
   ExecuteRow: (dbconn, sql, parm, cache) => {
@@ -240,23 +240,23 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 查询一条记录(缓存)
+   * 查询一条记录(缓存)
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cache
+   * @param [parm]
+   * @param [cache]
    * @return {Promise}
    */
   ExecuteRowCache: (dbconn, sql, parm, cache) => {
     return KOCMysql.ExecuteRow(dbconn, sql, parm, cache || true)
   },
   /**
-   * @desc 执行语句返回受影响的行数
+   * 执行语句返回受影响的行数
    * @param dbconn
    * @param sql
-   * @param parm
-   * @param cacheRemove
-   * @param cacheDBName
+   * @param [parm]
+   * @param [cacheRemove]
+   * @param [cacheDBName]
    * @return {Promise}
    */
   ExecuteNonQuery: (dbconn, sql, parm, cacheRemove, cacheDBName) => {
@@ -287,7 +287,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 事务开启
+   * 事务开启
    * @param db
    * @return {Promise}
    */
@@ -306,7 +306,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 事务回滚
+   * 事务回滚
    * @param conn
    * @return {Promise}
    */
@@ -320,7 +320,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 事务提交
+   *  事务提交
    * @param conn
    * @return {Promise}
    */
@@ -345,7 +345,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 添加条件
+   * 添加条件
    * @param whereSQL
    * @param addSQL
    * @param opSQL
@@ -361,13 +361,13 @@ const KOCMysql = module.exports = {
     return whereSQL.trim()
   },
   /**
-   * @desc 语句防注入处理
+   * 语句防注入处理
    * @param str
    * @return {string}
    */
   ToDBStr: (str) => KOCString.ToString(str).replace(/'/g, '\'\'').replace(/`/g, ' '),
   /**
-   * @desc 分页，参数
+   * 分页，参数
    */
   PageParm: function () {
     this.GetPageInfo = true
@@ -381,7 +381,7 @@ const KOCMysql = module.exports = {
     this.Length = 0
   },
   /**
-   * @desc 分页，页数据
+   * 分页，页数据
    * @param db
    * @param pageparm
    * @param pageparm.ColumnPK
@@ -403,7 +403,7 @@ const KOCMysql = module.exports = {
     return retValue
   },
   /**
-   * @desc 分页，列表
+   * 分页，列表
    * @param db
    * @param pageparm
    * @param pageparm.ColumnList
@@ -424,7 +424,7 @@ const KOCMysql = module.exports = {
     return KOCMysql.ExecuteTable(db, sql, parm)
   },
   /**
-   * @desc 分页
+   * 分页
    * @param db
    * @param pageparm
    * @param parm
@@ -437,7 +437,7 @@ const KOCMysql = module.exports = {
     return retValue
   },
   /**
-   * @desc 缓存写入
+   * 缓存写入
    * @param dbname
    * @param sql
    * @param parm
@@ -449,7 +449,7 @@ const KOCMysql = module.exports = {
     cacheRedis.set(KOCMysql.CacheKey(dbname, sql, parm), JSON.stringify(object), 'EX', KOCMysql.CacheExpire(expire))
   },
   /**
-   * @desc 缓存取出
+   * 缓存取出
    * @param dbname
    * @param sql
    * @param parm
@@ -469,7 +469,7 @@ const KOCMysql = module.exports = {
     })
   },
   /**
-   * @desc 缓存移除
+   * 缓存移除
    * @param dbname
    * @param sql
    * @param parm
@@ -479,7 +479,7 @@ const KOCMysql = module.exports = {
     cacheRedis.del(KOCMysql.CacheKey(dbname, sql, parm))
   },
   /**
-   * @desc 缓存移除(批量)
+   * 缓存移除(批量)
    * @param value
    * @param dbname
    * @param insertId
@@ -506,22 +506,22 @@ const KOCMysql = module.exports = {
     }
   },
   /**
-   * @desc 缓存清空(所有缓存:慎用)
+   * 缓存清空(所有缓存:慎用)
    */
   CacheClear: () => {
     if (!cacheRedis) return
     cacheRedis.flushdb()
   },
   /**
-   * @desc 缓存Key
+   * 缓存Key
    * @param dbname
    * @param sql
-   * @param parm
+   * @param [parm]
    * @return {*}
    */
   CacheKey: (dbname, sql, parm) => KOCString.MD5(KOCString.ToString(dbname) + KOCString.ToString(sql) + JSON.stringify(parm)),
   /**
-   * @desc 缓存过期时间(分钟)默认3分钟
+   * 缓存过期时间(分钟)默认3分钟
    * @param expire
    * @return {number}
    */
