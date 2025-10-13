@@ -29,7 +29,7 @@ const KOCMysql = module.exports = {
         ...thisValue,
         typeCast: function (field, next) {
           if (field.type === 'JSON') {
-            return field.string() // 返回原始JSON字符串而不是自动转换
+            return field.string('utf8') // 返回原始JSON字符串而不是自动转换
           }
           return next()
         },
