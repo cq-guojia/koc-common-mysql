@@ -25,7 +25,15 @@ const KOCMysql = module.exports = {
       const name = thisValue.name
       delete thisValue.name
       delete thisValue.sqlLog
-      poolCluster[name] = Mysql.createPool(thisValue)
+      poolCluster[name] = Mysql.createPool({
+        ...thisValue,
+        typeCast: function (field, next) {
+          if (field.type === 'JSON') {
+            return field.string() // 返回原始JSON字符串而不是自动转换
+          }
+          return next()
+        },
+      })
     })
     cacheRedis = redis
     if (cacheRedis && clear) KOCMysql.CacheClear()
