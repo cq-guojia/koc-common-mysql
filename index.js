@@ -1,12 +1,13 @@
 'use strict'
 
-const Mysql = require('mysql')
+const Mysql = require('mysql2')
 
 const KOCString = require('koc-common-string')
 const KOCReturn = require('koc-common-return/index')
 
 let poolCluster = null
 let cacheRedis = null
+let printLog = false
 
 const KOCMysql = module.exports = {
   /**
@@ -20,8 +21,10 @@ const KOCMysql = module.exports = {
     if (poolCluster) return KOCMysql
     poolCluster = {}
     dblist.forEach((thisValue) => {
+      if (thisValue?.sqlLog === true) printLog = thisValue.sqlLog
       const name = thisValue.name
       delete thisValue.name
+      delete thisValue.sqlLog
       poolCluster[name] = Mysql.createPool(thisValue)
     })
     cacheRedis = redis
@@ -52,7 +55,7 @@ const KOCMysql = module.exports = {
           if (values instanceof Array || typeof values !== 'object') {
             return Mysql.format(query, values)
           }
-          return query.replace(/\:(\w+)/g, function (txt, key) {
+          return query.replace(/:(\w+)/g, function (txt, key) {
             if (values.hasOwnProperty(key)) {
               return conn.escape(values[key])
             }
@@ -99,7 +102,7 @@ const KOCMysql = module.exports = {
         conn = retValue.returnObject
       }
       // 打印SQL
-      // console.log(conn.config.queryFormat(sql, parm))
+      if (printLog === true) console.log(conn.config.queryFormat(sql, parm))
       conn.query(sql, parm, (err, rows) => {
         if (!tran) conn.release()
         if (err) {
@@ -525,5 +528,5 @@ const KOCMysql = module.exports = {
    * @param expire
    * @return {number}
    */
-  CacheExpire: (expire) => KOCString.ToIntPositive(expire, 3) * 60
+  CacheExpire: (expire) => KOCString.ToIntPositive(expire, 3) * 60,
 }
