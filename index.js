@@ -103,30 +103,49 @@ const KOCMysql = module.exports = {
           if (retValue.returnObject) return resolve(retValue)
         }
       }
-      // 取得连接
-      if (!conn) {
-        retValue = await KOCMysql.Conn(dbconn)
-        if (retValue.hasError) return resolve(retValue)
-        conn = retValue.returnObject
-      }
-      // 打印SQL
-      if (printLog === true) console.log(conn.config.queryFormat(sql, parm))
-      conn.query(sql, parm, (err, rows) => {
-        if (!tran) conn.release()
-        if (err) {
-          //记录日志
-          console.error('查询出错[' + sql + '] 错误信息[' + err + ']')
-          console.error(parm)
-          console.error(err.message)
-          retValue.hasError = true
-          retValue.message = err.message
-          return resolve(retValue)
-        }
-        retValue.returnObject = rows
-        //写入缓存
-        if (cache && !tran && cacheRedis && Array.isArray(retValue.returnObject) && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache)
+    // 仅在「命令从未发到服务端」的连接关闭类错误时, 透明重试一次(对写操作安全)
+    const isClosedStateError = (e) =>
+      e && (
+        /Can't add new command when connection is in closed state/i.test(e.message || '') ||
+        e.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR' ||
+        e.code === 'PROTOCOL_ENQUEUE_AFTER_QUIT'
+      )
+    const runQuery = (retry) => {
+      const acquire = () => tran
+        ? Promise.resolve({ returnObject: conn, hasError: false })
+        : KOCMysql.Conn(dbconn)
+      acquire().then((acq) => {
+        if (acq.hasError) return resolve(acq)
+        const queryConn = acq.returnObject
+        if (printLog === true) console.log(queryConn.config.queryFormat(sql, parm))
+        queryConn.query(sql, parm, (err, rows) => {
+          if (!tran) queryConn.release()
+          if (err) {
+            // 非事务 + 首次 + 命令未发出类错误: 释放死连接并重试一次
+            if (!tran && !retry && isClosedStateError(err)) {
+              console.error('连接已关闭, 透明重试一次[' + sql + ']')
+              return runQuery(true)
+            }
+            //记录日志
+            console.error('查询出错[' + sql + '] 错误信息[' + err + ']')
+            console.error(parm)
+            console.error(err.message)
+            retValue.hasError = true
+            retValue.message = err.message
+            return resolve(retValue)
+          }
+          retValue.returnObject = rows
+          //写入缓存
+          if (cache && !tran && cacheRedis && Array.isArray(retValue.returnObject) && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache)
+          resolve(retValue)
+        })
+      }).catch((e) => {
+        retValue.hasError = true
+        retValue.message = (e && e.message) ? e.message : 'connection error'
         resolve(retValue)
       })
+    }
+    runQuery(false)
     })
   },
   /**
@@ -284,7 +303,7 @@ const KOCMysql = module.exports = {
             return resolve(retValue)
           }
           if (thisValue.insertId) insertID.push(thisValue.insertId)
-          affectedRows += this.affectedRows
+          affectedRows += thisValue.affectedRows
         }
         if (insertID.length) insertID = null
       } else {
