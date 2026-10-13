@@ -8,6 +8,8 @@ const KOCReturn = require('koc-common-return/index')
 let poolCluster = null
 let cacheRedis = null
 let printLog = false
+let defaultQueryTimeout = 15000
+let dbQueryTimeout = {}
 
 const KOCMysql = module.exports = {
   /**
@@ -25,6 +27,10 @@ const KOCMysql = module.exports = {
       const name = thisValue.name
       delete thisValue.name
       delete thisValue.sqlLog
+      // 提取命令超时, 避免透传到 mysql2 连接配置产生噪音警告; 未配置则用默认值
+      const queryTimeout = Number.isFinite(thisValue.queryTimeout) ? thisValue.queryTimeout : defaultQueryTimeout
+      delete thisValue.queryTimeout
+      dbQueryTimeout[name] = queryTimeout
       poolCluster[name] = Mysql.createPool({
         ...thisValue,
         typeCast: function (field, next) {
@@ -118,10 +124,19 @@ const KOCMysql = module.exports = {
         if (acq.hasError) return resolve(acq)
         const queryConn = acq.returnObject
         if (printLog === true) console.log(queryConn.config.queryFormat(sql, parm))
-        queryConn.query(sql, parm, (err, rows) => {
-          if (!tran) queryConn.release()
+        const qTimeout = (!tran && dbQueryTimeout[dbconn]) || defaultQueryTimeout
+        queryConn.query({ sql, values: parm, timeout: qTimeout }, (err, rows) => {
           if (err) {
-            // 非事务 + 首次 + 命令未发出类错误: 释放死连接并重试一次
+            // 连接已死 / 超时等致命错误: 销毁连接, 避免半开连接放回池中继续污染(否则会泄漏并拖垮连接池)
+            const isFatal = isClosedStateError(err) ||
+              err.code === 'ETIMEDOUT' ||
+              err.code === 'PROTOCOL_SEQUENCE_TIMEOUT' ||
+              /Query timed out/i.test(err.message || '')
+            if (!tran) {
+              if (isFatal) queryConn.destroy()
+              else queryConn.release()
+            }
+            // 非事务 + 首次 + 命令未发出类错误: 销毁死连接并重试一次
             if (!tran && !retry && isClosedStateError(err)) {
               console.error('连接已关闭, 透明重试一次[' + sql + ']')
               return runQuery(true)
@@ -134,6 +149,7 @@ const KOCMysql = module.exports = {
             retValue.message = err.message
             return resolve(retValue)
           }
+          if (!tran) queryConn.release()
           retValue.returnObject = rows
           //写入缓存
           if (cache && !tran && cacheRedis && Array.isArray(retValue.returnObject) && retValue.returnObject.length) KOCMysql.CachePut(dbconn, sql, parm, retValue.returnObject, cache)
